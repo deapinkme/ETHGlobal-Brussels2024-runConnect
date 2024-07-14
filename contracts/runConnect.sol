@@ -47,11 +47,25 @@ contract LocationRegistry {
 
 
         // coarseLocationToRunnersLocationAndTelegram[coarseLocation].push((_encryptedPreciseLocation, telegramHandle));
-        emit RunnerAdded(address, address2runnerI[msg.sender]); //AMS - do we wanna hand in encrypted fine location
+        emit RunnerAdded(msg.sender, address2runnerI[msg.sender]); //AMS - do we wanna hand in encrypted fine location
     }
 
+     // Function to register a runner at a coarse location
+    function removeRunner() external {
+
+        if (address2runnerI[msg.sender] != 0){ 
+            // AMS - set index to 0
+            address2runnerI[msg.sender] = 0;
+        }
+
+
+        // coarseLocationToRunnersLocationAndTelegram[coarseLocation].push((_encryptedPreciseLocation, telegramHandle));
+        emit RunnerAdded(msg.sender, address2runnerI[msg.sender]); //AMS - do we wanna hand in encrypted fine location
+    }
+   
+
     // Function to find runners within a given distance radius
-    function findRunners(uint distanceRadius) external view returns (string[] memory theList) {
+    function findRunners(uint distanceRadius) external view returns (string[] calldata theList) {
         // AMS - check that they have created runner
         // AMS - 
         require(distanceRadius > 0, "Distance radius must be greater than zero"); // AMS - maybe there should be a minimum and maximum
@@ -59,16 +73,18 @@ contract LocationRegistry {
         if (address2runnerI[msg.sender] != 0){ 
             // check coarse location x
             // check coarse location x
-            uint myX = loc2RI[address2runnerI[msg.sender]].coarseLocationX;
-            uint myY = loc2RI[address2runnerI[msg.sender]].coarseLocationY;
-            euint8 myEx = loc2RI[address2runnerI[msg.sender]].encryptedPreciseLocationX;
-            euint8 myEy = loc2RI[address2runnerI[msg.sender]].encryptedPreciseLocationY;
-            uint[] othersI = loc2RI[myX][myY];
+            uint myX = allRunners[address2runnerI[msg.sender]].coarseLocationX;
+            uint myY = allRunners[address2runnerI[msg.sender]].coarseLocationY;
+            euint8 myEx = allRunners[address2runnerI[msg.sender]].encryptedPreciseLocationX;
+            euint8 myEy = allRunners[address2runnerI[msg.sender]].encryptedPreciseLocationY;
+            uint[] memory othersI = loc2RI[myX][myY];
+            theList = new string[](othersI.length);
             for (uint i = 0; i<othersI.length; i++) {
-                euint8 othersEx = loc2RI[i].encryptedPreciseLocationX;
-                euint8 othersEy = loc2RI[i].encryptedPreciseLocationY;
+                euint8 othersEx = allRunners[i].encryptedPreciseLocationX;
+                euint8 othersEy = allRunners[i].encryptedPreciseLocationY;
                 if (dist(myEx, myEy, othersEx, othersEy) <= distanceRadius) {
-                    theList.push(loc2RI[i].telegramHandle);
+                    string storage th = allRunners[i].telegramHandle;
+                    theList.push(th);
                 }
             }
             // return list of runners
@@ -79,30 +95,6 @@ contract LocationRegistry {
         euint8 eDist = FHE.add(
             FHE.sub(FHE.max(x1, x2), FHE.min(x1, x2)),
             FHE.sub(FHE.max(y1, y2), FHE.min(y1, y2)));
+        return FHE.decrypt(eDist);
     }
-
-    // Helper function to concatenate a location with an integer offset
-    function concatenateLocations(string memory location, int offset) internal pure returns (string memory) {
-        // Convert offset to string and concatenate with location
-        // For demonstration, this is a simplified method and should be adjusted based on your actual use case
-        return string(abi.encodePacked(location, "_", offset)); // AMS - this is not the same type!!!
-    }
-
-    // Helper function to concatenate two string arrays
-    function concatArrays(string[] memory arr1, string[] memory arr2) internal pure returns (string[] memory) {
-        uint len1 = arr1.length;
-        uint len2 = arr2.length;
-        string[] memory merged = new string[](len1 + len2);
-
-        for (uint i = 0; i < len1; i++) {
-            merged[i] = arr1[i];
-        }
-
-        for (uint i = 0; i < len2; i++) {
-            merged[len1 + i] = arr2[i];
-        }
-
-        return merged;
-    }
-
 }
