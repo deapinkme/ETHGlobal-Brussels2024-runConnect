@@ -1,34 +1,70 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.25;
+
+import "@fhenixprotocol/contracts/FHE.sol";
 
 contract LocationRegistry {
-    // Mapping from coarse location to list of telegram handles (runners)
-    mapping(string => string[]) private locationToRunners;
+    // create struct tuple (encryptedPreciseLocation, telegramHandle)
+    struct RunnerInfo {
+            uint coarseLocationX;
+            uint coarseLocationY;
+            euint8 encryptedPreciseLocationX;
+            euint8 encryptedPreciseLocationY;
+            string telegramHandle;
+    }
 
+    //
+    mapping(uint coarseLocationX => mapping(uint coarseLocationY => uint[] runnersI )) loc2RI; //loc2RI - location to runner index
+
+    // how to find yourself and others
+    mapping(address => uint runnerIndex) address2runnerI; // ETH address to runner index
+
+    // all runners
+    RunnerInfo[] allRunners;
+    
     // Event emitted when a runner is added to a location
-    event RunnerAdded(string coarseLocation, uint preciseLocation , string telegramHandle); // AMS - FHE encrypted preciseLocation
+    event RunnerAdded(address, uint runnerIndex); // AMS - FHE encrypted preciseLocation - RunnerInfo runner?
 
     // Function to register a runner at a coarse location
-    function registerCoarseLocation(string calldata coarseLocation, string calldata telegramHandle) external {
-        require(bytes(location).length > 0, "Location cannot be empty");
+    function registerRunner(uint coarseLocationX, uint coarseLocationY, inEuint8 calldata _encryptedPreciseLocationX, inEuint8 calldata _encryptedPreciseLocationY, string memory telegramHandle) external {
+        require(coarseLocationX > 0, "Location cannot be empty");
+        require(coarseLocationY > 0, "Location cannot be empty");
         require(bytes(telegramHandle).length > 0, "Telegram handle cannot be empty");
 
-        locationToRunners[location].push(telegramHandle);
-        emit RunnerAdded(location, telegramHandle); //AMS - do we wanna hand in encrypted fine location
+
+        if (address2runnerI[msg.sender] != 0){ 
+            // AMS - this address has already registered a runner, do we want to re-register? Do we wanna delete EOD?
+            // throw error?
+        } else {
+            allRunners.push(RunnerInfo({
+                coarseLocationX: coarseLocationX,
+                coarseLocationY: coarseLocationY,
+                encryptedPreciseLocationX: FHE.asEuint8(_encryptedPreciseLocationX),
+                encryptedPreciseLocationY: FHE.asEuint8(_encryptedPreciseLocationY),
+                telegramHandle: telegramHandle
+                }));
+        }
+
+
+        // coarseLocationToRunnersLocationAndTelegram[coarseLocation].push((_encryptedPreciseLocation, telegramHandle));
+        emit RunnerAdded(address, address2runnerI[msg.sender]); //AMS - do we wanna hand in encrypted fine location
     }
 
     // Function to find runners within a given distance radius
-    function findRunners(string calldata location, uint distanceRadius) external view returns (string[] memory) {
-        require(bytes(location).length > 0, "Location cannot be empty");
-        require(distanceRadius > 0, "Distance radius must be greater than zero"); // AMS - maybe there should be a minimum and maximum
+    function findRunners(uint distanceRadius) external view returns (string[] memory) {
+        // AMS - check that they have created runner
+        // AMS - 
+        
+        // require(bytes(location).length > 0, "Location cannot be empty");
+        // require(distanceRadius > 0, "Distance radius must be greater than zero"); // AMS - maybe there should be a minimum and maximum
 
-        string[] memory result;
+        string[] result;
 
         // Loop through neighboring coarse locations (for demonstration, let's assume a simplified model)
         // In real-world applications, you would need a more sophisticated method to determine neighbors
         for (uint i = 0; i <= distanceRadius; i++) {
-            string memory neighborLocation = concatenateLocations(location, int(i));
-            result = concatArrays(result, locationToRunners[neighborLocation]);
+            euint8 neighborEPreciseLocation = concatenateLocations(location, int(i));
+            result = concatArrays(result, coarseLocationToRunnersLocationAndTelegram[neighborEPreciseLocation]);
         }
 
         // AMS - conditional pushing requires branching
@@ -41,7 +77,7 @@ contract LocationRegistry {
     function concatenateLocations(string memory location, int offset) internal pure returns (string memory) {
         // Convert offset to string and concatenate with location
         // For demonstration, this is a simplified method and should be adjusted based on your actual use case
-        return string(abi.encodePacked(location, "_", toString(offset)));
+        return string(abi.encodePacked(location, "_", offset)); // AMS - this is not the same type!!!
     }
 
     // Helper function to concatenate two string arrays
@@ -61,25 +97,4 @@ contract LocationRegistry {
         return merged;
     }
 
-    // Helper function to convert an int to a string
-    function toString(int value) internal pure returns (string memory) {
-        if (value == 0) {
-            return "0";
-        }
-        bool negative = value < 0;
-        uint v = negative ? uint(-value) : uint(value);
-        uint len = negative ? 2 : 1 + uint(log10(v));
-        bytes memory bstr = new bytes(len);
-        unchecked {
-            uint p = len - 1;
-            if (negative) {
-                bstr[0] = "-";
-            }
-            while (v != 0) {
-                bstr[p--] = bytes1(uint8(48 + v % 10));
-                v /= 10;
-            }
-        }
-        return string(bstr);
-    }
 }
