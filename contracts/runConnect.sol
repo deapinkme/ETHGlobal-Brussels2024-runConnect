@@ -21,7 +21,7 @@ contract LocationRegistry {
 
     // all runners
     RunnerInfo[] allRunners;
-    
+
     // Event emitted when a runner is added to a location
     event RunnerAdded(address, uint runnerIndex); // AMS - FHE encrypted preciseLocation - RunnerInfo runner?
 
@@ -51,26 +51,34 @@ contract LocationRegistry {
     }
 
     // Function to find runners within a given distance radius
-    function findRunners(uint distanceRadius) external view returns (string[] memory) {
+    function findRunners(uint distanceRadius) external view returns (string[] memory theList) {
         // AMS - check that they have created runner
         // AMS - 
-        
-        // require(bytes(location).length > 0, "Location cannot be empty");
-        // require(distanceRadius > 0, "Distance radius must be greater than zero"); // AMS - maybe there should be a minimum and maximum
+        require(distanceRadius > 0, "Distance radius must be greater than zero"); // AMS - maybe there should be a minimum and maximum
 
-        string[] result;
-
-        // Loop through neighboring coarse locations (for demonstration, let's assume a simplified model)
-        // In real-world applications, you would need a more sophisticated method to determine neighbors
-        for (uint i = 0; i <= distanceRadius; i++) {
-            euint8 neighborEPreciseLocation = concatenateLocations(location, int(i));
-            result = concatArrays(result, coarseLocationToRunnersLocationAndTelegram[neighborEPreciseLocation]);
+        if (address2runnerI[msg.sender] != 0){ 
+            // check coarse location x
+            // check coarse location x
+            uint myX = loc2RI[address2runnerI[msg.sender]].coarseLocationX;
+            uint myY = loc2RI[address2runnerI[msg.sender]].coarseLocationY;
+            euint8 myEx = loc2RI[address2runnerI[msg.sender]].encryptedPreciseLocationX;
+            euint8 myEy = loc2RI[address2runnerI[msg.sender]].encryptedPreciseLocationY;
+            uint[] othersI = loc2RI[myX][myY];
+            for (uint i = 0; i<othersI.length; i++) {
+                euint8 othersEx = loc2RI[i].encryptedPreciseLocationX;
+                euint8 othersEy = loc2RI[i].encryptedPreciseLocationY;
+                if (dist(myEx, myEy, othersEx, othersEy) <= distanceRadius) {
+                    theList.push(loc2RI[i].telegramHandle);
+                }
+            }
+            // return list of runners
         }
+    }
 
-        // AMS - conditional pushing requires branching
-        // AMS - use bit string - inclusion is binary 
-
-        return result;
+    function dist(euint8 x1, euint8 y1, euint8 x2, euint8 y2) internal returns (uint8) {
+        euint8 eDist = FHE.add(
+            FHE.sub(FHE.max(x1, x2), FHE.min(x1, x2)),
+            FHE.sub(FHE.max(y1, y2), FHE.min(y1, y2)));
     }
 
     // Helper function to concatenate a location with an integer offset
